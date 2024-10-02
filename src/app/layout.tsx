@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MDK",
-  description: "School Management System",
+  title: "Colloge Management Systme",
+  description: "Next.js School Management System",
 };
 
 export default function RootLayout({
