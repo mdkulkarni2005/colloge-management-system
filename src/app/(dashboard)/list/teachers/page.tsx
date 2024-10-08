@@ -7,8 +7,9 @@ import prisma from "@/lib/prisma";
 import { Class, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
+import { ITEM_PER_PAGE } from "@/lib/settings"
 
-type TeacherList = Teacher & {subjects:Subject[]} & {classes:Class[]}
+type TeacherList = Teacher & { subjects: Subject[] } & { classes: Class[] };
 
 const columns = [
   {
@@ -65,8 +66,12 @@ const renderRow = (item: TeacherList) => (
       </div>
     </td>
     <td className="hidden md:table-cell">{item.username}</td>
-    <td className="hidden md:table-cell">{item.subjects.join(",")}</td>
-    <td className="hidden md:table-cell">{item.classes.join(",")}</td>
+    <td className="hidden md:table-cell">
+      {item.subjects.map((subject) => subject.name).join(",")}
+    </td>
+    <td className="hidden md:table-cell">
+      {item.classes.map((classItem) => classItem.name).join(",")}
+    </td>
     <td className="hidden md:table-cell">{item.phone}</td>
     <td className="hidden md:table-cell">{item.address}</td>
     <td>
@@ -80,22 +85,35 @@ const renderRow = (item: TeacherList) => (
           // <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaPurple">
           //   <Image src="/delete.png" alt="" width={16} height={16} />
           // </button>
-          <FormModal table="teacher" type="delete" id={item.id}/>
+          <FormModal table="teacher" type="delete" id={item.id} />
         )}
       </div>
     </td>
   </tr>
 );
-const TeacherListPage = async () => {
+const TeacherListPage = async ({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string  | undefined};
+}) => {
 
-  const data = await prisma.teacher.findMany({
-    include:{
-      subjects:true,
-      classes:true,
-    }
-  })
+  const {page, ...queryParams} = searchParams
 
-  console.log(data)
+  const p = page ? parseInt(page) : 1
+
+  const [data,count] = await prisma.$transaction([
+     prisma.teacher.findMany({
+      include: {
+        subjects: true,
+        classes: true,
+      },
+      take: ITEM_PER_PAGE,
+      skip: ITEM_PER_PAGE * (p - 1)
+    }),
+    prisma.teacher.count()
+  ])
+
+
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
@@ -115,7 +133,7 @@ const TeacherListPage = async () => {
               // <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               //   <Image src="/plus.png" alt="" width={14} height={14} />
               // </button>
-              <FormModal table="teacher" type="create"/>
+              <FormModal table="teacher" type="create" />
             )}
           </div>
         </div>
@@ -123,7 +141,7 @@ const TeacherListPage = async () => {
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
-      <Pagination />
+      <Pagination page={p} count={count} />
     </div>
   );
 };
