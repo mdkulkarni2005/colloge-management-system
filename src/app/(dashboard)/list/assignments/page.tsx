@@ -41,28 +41,80 @@ const columns = [
   },
 ];
 
-const AssignmentListPage = () => {
-  const renderRow = (item: Assignment) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
-      <td className="flex items-center gap-4 p-4">{item.subject}</td>
-      <td>{item.class}</td>
-      <td className="hidden md:table-cell">{item.teacher}</td>
-      <td className="hidden md:table-cell">{item.dueDate}</td>
-      <td>
-        <div className="flex items-center gap-2">
-          {role === "admin" || role === "teacher" && (
-            <>
-              <FormModal table="assignment" type="update" data={item} />
-              <FormModal table="assignment" type="delete" id={item.id} />
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
+const renderRow = (item: Assignment) => (
+  <tr
+    key={item.id}
+    className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+  >
+    <td className="flex items-center gap-4 p-4">{item.subject}</td>
+    <td>{item.class}</td>
+    <td className="hidden md:table-cell">{item.teacher}</td>
+    <td className="hidden md:table-cell">{item.dueDate}</td>
+    <td>
+      <div className="flex items-center gap-2">
+        {role === "admin" || role === "teacher" && (
+          <>
+            <FormModal table="assignment" type="update" data={item} />
+            <FormModal table="assignment" type="delete" id={item.id} />
+          </>
+        )}
+      </div>
+    </td>
+  </tr>
+);
+const AssignmentListPage = async ({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | undefined };
+}) => {
+  const { page, ...queryParams } = searchParams;
+
+  const p = page ? parseInt(page) : 1;
+
+  // URL PARAMS CONDITION
+
+  const query: Prisma.ExamWhereInput = {};
+
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value !== undefined) {
+        switch (key) {
+          case "classId":
+            query.lesson = {classId :parseInt(value)};
+            break;
+          case "teacherId":
+            query.lesson = {
+              teacherId:value,
+            }
+            break;
+          case "search":
+            query.lesson = {
+              subject :{
+                name: {contains:value, mode:"insensitive"},
+              }
+            }
+            break;
+        }
+      }
+    }
+  }
+  const [data, count] = await prisma.$transaction([
+    prisma.exam.findMany({
+      where: query,
+      include: {
+        lesson:{
+          select:{
+            subject: {select: { name: true}},
+            teacher: {select: { name: true, surname: true}},
+            class: {select: { name: true}},
+          }
+        }
+      },
+      take: ITEM_PER_PAGE,
+      skip: ITEM_PER_PAGE * (p - 1),
+    }),
+    prisma.exam.count({ where: query }),
+  ]);
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
